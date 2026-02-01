@@ -65,7 +65,9 @@ Quantum-Logistics-Optimization/
 │
 └── reports/                # Documentation & Outputs
     ├── figures/            # Box plots and convergence curves
-    └── final_report/       # final report drafts```
+    └── final_report/       # final report drafts
+
+```
 
 ##  Installation
 To set up the project locally, follow these steps:
