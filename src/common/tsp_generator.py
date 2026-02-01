@@ -1,6 +1,23 @@
+import json
+import sys
 import numpy as np
-import pandas as pd
 from pathlib import Path
+
+current_file = Path(__file__).resolve()
+project_root = current_file.parents[2]
+if str(project_root) not in sys.path:
+    sys.path.append(str(project_root))
+
+from src.common.brute_force_solver import BruteForceSolver
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """Custom JSON Encoder to handle NumPy arrays."""
+
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
 
 
 class TSPGenerator:
@@ -39,25 +56,44 @@ class TSPGenerator:
         self.distance_matrix = matrix
         return matrix
 
-    def save_to_csv(self):
+    def save_data(self):
         """Saves the coordinates and distance matrix to CSV files."""
 
-        current_file = Path(__file__).resolve()
-        project_root = current_file.parent.parent.parent
+        if len(self.distance_matrix) == 0:
+            self.calculate_distance_matrix()
 
-        output_dir = project_root / "data" / "raw"
+        print(
+            f" [N={self.num_cities}] : Calculating optimal solution using Brute Force..."
+        )
+        solver = BruteForceSolver(self.distance_matrix)
+        solution = solver.solve()
 
+        data_payload = {
+            "metadata": {
+                "num_cities": self.num_cities,
+                "seed": self.seed,
+                "description": "TSP Instance with Ground Truth",
+            },
+            "input": {
+                "coordinates": self.coordinates,
+                "distance_matrix": self.distance_matrix,
+            },
+            "ground_truth": {
+                "optimal_path": solution["path"],
+                "min_cost": solution["cost"],
+            },
+        }
+
+        output_dir = project_root / "data"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        coords_file = output_dir / f"tsp_{self.num_cities}_coords.csv"
-        pd.DataFrame(self.coordinates, columns=["x", "y"]).to_csv(
-            coords_file, index=False
-        )
+        filename = output_dir / f"tsp_n{self.num_cities}.json"
 
-        dist_file = output_dir / f"tsp_{self.num_cities}_distance_matrix.csv"
-        pd.DataFrame(self.distance_matrix).to_csv(dist_file, index=False)
+        with open(filename, "w") as f:
+            json.dump(data_payload, f, indent=4, cls=NumpyEncoder)
 
-        print(f"Coordinates N={self.num_cities} saved to {output_dir}")
+        print(f" [N={self.num_cities}]  : {filename}")
+        print(f"   -> : {solution['cost']:.4f}")
 
 
 if __name__ == "__main__":
@@ -71,6 +107,6 @@ if __name__ == "__main__":
         tsp_gen = TSPGenerator(num_cities=n, seed=2026)
         tsp_gen.generate_data()
         tsp_gen.calculate_distance_matrix()
-        tsp_gen.save_to_csv()
+        tsp_gen.save_data()
 
     print(f"TSP instance with {scenarios} cities generated and saved.")
